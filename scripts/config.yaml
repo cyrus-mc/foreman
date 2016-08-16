@@ -7,16 +7,12 @@ default_configurations:
           site_code: *site_code_pdx
           domain: 'smarshdev.com'
           network: 'dev_pdx_linux_01' 
-          network_id: '65fb74bb-f72c-42a2-af63-9ba28cbe58f4'
-          # name: 'dev_pdx_linux_01'
-          #  id: '65fb74bb-f72c-42a2-af63-9ba28cbe58f4'
+          #network_id: '65fb74bb-f72c-42a2-af63-9ba28cbe58f4'
         qa:
           site_code: *site_code_pdx
           domain: 'smarshqa.com'
           network: 'qa_pdx_linux_01'
-          network_id: 'e6bf64d8-c407-499e-8096-54cc6aadc539'
-          #  name: 'qa_pdx_linux_01'
-          #  id: 'e6bf64d8-c407-499e-8096-54cc6aadc539'
+          #          network_id: 'e6bf64d8-c407-499e-8096-54cc6aadc539'
     quincy:
       site_code: &site_code_qcy 'qcy'
       environment:
@@ -24,7 +20,6 @@ default_configurations:
         development:
           domain: 'smarshdev.com'
           network: 'dev_pdx_linux_01'
-          #  name: 'dev_pdx_linux_01'
     
 host_definitions:
   m1.small_centos7:
@@ -35,4 +30,3 @@ host_definitions:
   webarchive_activemq:
     hostgroup: 'webarchive_activemq'
     name: 'waactivemq-%s-%s'
-  

@@ -22,6 +22,7 @@ def create_session(url, user, password):
     return None
 
 def getRecords(url, s, debug=False):
+  """ Get all records for a specific resource """
   if debug:
     print "requests.get(%s)" % url
 
@@ -226,6 +227,12 @@ def main(argv):
         if flavorRecord == None:
             print "Unable to find specified flavor, defaulting to hostgroup setting"
 
+    # retrieve compute resource network ID
+    networkRecord = getRecord(server, 'compute_resources/%s/available_networks' % (computeresource['id']), 'name', build_settings['network'], session)
+    if networkRecord == None:
+        print "Unable to find specified network %s, sipping" % build_settings['network']
+        continue
+
     number = 1
     pod = 1
     if 'number' in spec:
@@ -271,7 +278,7 @@ def main(argv):
       # compute attributes
       request_body_map['host']['compute_attributes'] = {}
       request_body_map['host']['compute_attributes']['nics'] = []
-      request_body_map['host']['compute_attributes']['nics'].insert(0, build_settings['network_id'])
+      request_body_map['host']['compute_attributes']['nics'].insert(0, networkRecord['id'])
       
       # did we specify a flavor and was it found?
       if not flavorRecord == None:

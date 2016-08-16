@@ -8,21 +8,33 @@ import getpass
 import getopt
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-def create_session(url, user, password):
-  s = requests.Session()
+def create_session(host, user, password, debug=False):
+  """ Create a login session """
 
+  # there is no actual login API call (that I know of)
+  url = 'https://%s/api/v2/locations' % host
+
+  if debug:
+      print "requests.get(%s)" % url
+
+  s = requests.Session()
   # set our authentication parameters
   s.auth = ( user, password )
 
-  # we should be able to login once and then set a cookie
   response = s.get(url, verify=False)
+  if debug:
+    print response
+
   if response.status_code == 200:
     return s
   else:
     return None
 
-def getRecords(url, s, debug=False):
+def getRecords(host, resource, s, debug=False):
   """ Get all records for a specific resource """
+
+  url = 'https://%s/api/v2/%s' % (host, resource)
+
   if debug:
     print "requests.get(%s)" % url
 
@@ -151,12 +163,13 @@ def main(argv):
   password = getpass.getpass('password: ')
 
   # create session
-  session = create_session('https://%s/api/v2/locations' % server, username, password)
+  session = create_session(server, username, password)
   if session == None:
     print "Failed to login, please check your username and password!"
     sys.exit(1)
 
-  userRecord = getRecords("http://%s/api/v2/users/%s" % (server, username), session)
+  # grab details about user
+  userRecord = getRecord(server, 'users', 'login', username, session)
   if userRecord == None:
     print "Failed to retrieve user record, please contact system administrator!"
     sys.exit(1)
@@ -187,7 +200,7 @@ def main(argv):
   organization = userRecord['organizations'][tinput]
 
   # find compute resource(s) for our location and organization
-  computeResourceRecord = getRecords('https://%s/api/v2/compute_resources?search=location_id=%s&organization_id=%s' % (server, location['id'], organization['id']), session)
+  computeResourceRecord = getRecords(server, 'compute_resources?search=location_id=%s&organization_id=%s' % (location['id'], organization['id']), session)
   if computeResourceRecord == None:
     print "Unable to find any compute resources to deploy on, please contact your system administrator!"
     sys.exit(1)
@@ -214,7 +227,7 @@ def main(argv):
 
     # ok, we should have most of the needed information to build the machine
     # find hostgroup ID
-    hostGroupRecord = getRecords('https://%s/api/v2/hostgroups/%s' % (server, build_settings['hostgroup']), session) 
+    hostGroupRecord = getRecord(server, 'hostgroups', 'name', build_settings['hostgroup'], session)
     if hostGroupRecord == None:
       print "Unable to query hostgroup. Do you have permission?"
       sys.exit(3)

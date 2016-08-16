@@ -1,0 +1,14 @@
+build_spec:
+  environment: &environment 'development'
+#  network: &network 'qa_pdx_linux_01'
+  location: &location 'PAC'
+  systems:
+    web:
+      spec: 'webarchive_crawler'
+      environment: *environment
+      location: *location
+      flavor: 'm1.large'
+      #number: 2
+      #network: *network
+#    activemq:
+#      spec: 'webarchive_activemq'

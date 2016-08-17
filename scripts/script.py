@@ -12,7 +12,7 @@ def create_session(host, user, password, debug=False):
   """ Create a login session """
 
   # there is no actual login API call (that I know of)
-  url = 'https://%s/api/v2/locations' % host
+  url = 'https://%s/api/v2/users' % host
 
   if debug:
       print "requests.get(%s)" % url
@@ -116,6 +116,19 @@ def createRecord(server, resource, input_data, s, debug=False):
 
   return response
 
+def checkPermission(userRecord, resource, permission, debug=False):
+    """ Check user record for permission to specified resource """
+
+    if userRecord['admin']:
+      return True
+
+    if resource in userRecord:
+      for entry in userRecord[resource]:
+          if entry['name'].lower() == permission.lower():
+              return True
+
+    return False
+
 # main function, where the fun starts
 def main(argv):
 
@@ -169,68 +182,95 @@ def main(argv):
     sys.exit(1)
 
   # grab details about user
+  # this should list what organizations and locations this user is authorized to
   userRecord = getRecord(server, 'users', 'login', username, session)
   if userRecord == None:
     print "Failed to retrieve user record, please contact system administrator!"
     sys.exit(1)
 
-  if userRecord['locations'].__len__() == 0:
-    print "User does not have access to deploy in any locations, please contact your system administrator!"
-    sys.exit(1)
-  elif userRecord['organizations'].__len__() == 0:
-    print "User does not have access to deploy in any organization, please contact your system administrator!"
-    sys.exit(1)
+  # there are a few different paths we can take here
+  #
+  #  - default location is specified 
+  #  - no default location specified so use profile default location
+  location = None
+  if 'location' in input_config['build_spec']:
+    location = input_config['build_spec']['location']
+  elif not userRecord['default_location'] == None:
+    location = userRecord['default_location']['name']
 
-  # prompt user to select their location
-  i = 0
-  for location in userRecord['locations']:
-    print "%d : %s" % (i, location['name'])
-    i += 1
-
-  tinput = input('select location: ')
-  location = userRecord['locations'][tinput] 
-  
-  # prompt user to select their organization
-  i = 0
-  for organization in userRecord['organizations']:
-    print "%d : %s" % (i, organization['name'])
-    i += 1
-
-  tinput = input('select organization: ')
-  organization = userRecord['organizations'][tinput]
-
-  # find compute resource(s) for our location and organization
-  computeResourceRecord = getRecords(server, 'compute_resources?search=location_id=%s&organization_id=%s' % (location['id'], organization['id']), session)
-  if computeResourceRecord == None:
-    print "Unable to find any compute resources to deploy on, please contact your system administrator!"
-    sys.exit(1)
-
-  # prompt user for the compute resource to use
-  i = 0
-  for computeresource in computeResourceRecord:
-    print '%d : %s' % (i, computeresource['name'])
-    i += 1
-
-  tinput = input('select compute resource: ')
-  computeresource = computeResourceRecord[tinput]
-
-  print "Building systems for environment %s" % (input_config['build_spec']['environment'])
-  default_global_settings = config['default_configurations']['locations'][location['name'].lower()]['environment'][input_config['build_spec']['environment']]
-
+  # same logic for organization
+  organization = None
+  if 'organization' in input_config['build_spec']:
+    organization = input_config['build_spec']['organization']
+  elif not userRecord['default_organization'] == None:
+    organization = userRecord['default_organization']['name']
+ 
   # loop over the systems to build
   for system in input_config['build_spec']['systems']:
     spec = input_config['build_spec']['systems'][system]
-    default_host_settings = config['host_definitions'][spec['spec']]
+
+    # get default settings for this spec (if it exists)
+    default_host_settings = {}
+    if spec['spec'] in config['host_definitions']:
+      default_host_settings = config['host_definitions'][spec['spec']]
+
+    # now we need to make a decision on the location to build in
+    # use global/default or the one specified in the spec
+    if 'location' in spec:
+      location = spec['location']
+
+    if 'organization' in spec:
+      organization = spec['organization']
+
+    if organization == None or location == None:
+      print "No location or organization specified for this deployment, skipping"
+      continue
+
+    # check if user has access to this location
+    if not checkPermission(userRecord, 'locations', location):
+        print "User is not permitted to deploy in location %s, skipping" % location
+
+    locationRecord = getRecords(server, 'locations/%s' % location, session)
+
+    # check if user has access to this organization
+    if not checkPermission(userRecord, 'organizations', organization):
+        print "User is not permitted to deploy in organization %s, skipping" % organization
+
+    orgRecord = getRecords(server, 'organizations/%s' % organization, session)
+
+    default_global_settings = config['default_configurations']['locations'][location.lower()]['environment'][spec['environment']]
     build_settings = default_global_settings.copy()
     build_settings.update(default_host_settings)
     build_settings.update(spec)
 
     # ok, we should have most of the needed information to build the machine
     # find hostgroup ID
+    if not 'hostgroup' in build_settings:
+      print "No hostgroup specified, skipping"
+      continue
+
     hostGroupRecord = getRecord(server, 'hostgroups', 'name', build_settings['hostgroup'], session)
     if hostGroupRecord == None:
-      print "Unable to query hostgroup. Do you have permission?"
-      sys.exit(3)
+      print "Unable to query hostgroup. Do you have permission?, skipping"
+      continue
+
+    # find compute resource(s) for our location and organization
+    computeResourceRecord = getRecords(server, 'compute_resources?search=location_id=%s&organization_id=%s' % (locationRecord['id'], orgRecord['id']), session)
+    if computeResourceRecord == None or computeResourceRecord.__len__() == 0:
+      print "Unable to find any compute resources to deploy on, please contact your system administrator!"
+      sys.exit(1)
+    elif computeResourceRecord.__len__() == 1:
+      computeresource = computeResourceRecord[0]
+    else:
+      print "Multiple compute resources found for specified location and organization, please select which one to use"
+      # prompt user for the compute resource to use
+      i = 0
+      for computeresource in computeResourceRecord:
+        print '%d : %s' % (i, computeresource['name'])
+        i += 1
+
+      tinput = input('select compute resource: ')
+      computeresource = computeResourceRecord[tinput]
 
     # did we specify a custom flavor (outside of what is set by hostgroup)?
     flavorRecord = None
@@ -248,6 +288,7 @@ def main(argv):
 
     number = 1
     pod = 1
+    # dynamically figure out next POD number
     if 'number' in spec:
       number = spec['number']
 
@@ -265,8 +306,8 @@ def main(argv):
     for i in range(1, number + 1): 
       request_body_map = {}
       request_body_map['host'] = {}
-      request_body_map['host']['location_id'] = location['id']
-      request_body_map['host']['organization_id'] = organization['id']
+      request_body_map['host']['location_id'] = locationRecord['id']
+      request_body_map['host']['organization_id'] = orgRecord['id']
       request_body_map['host']['environment_id'] = "3" # this will be upated via or post hook
       request_body_map['host']['compute_resource_id'] = computeresource['id']
       request_body_map['host']['managed'] = True

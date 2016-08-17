@@ -1,6 +1,6 @@
 default_configurations:
   locations:
-    pitock:
+    pac:
       site_code: &site_code_pdx 'pdx'
       environment:
         development:
@@ -26,5 +26,5 @@ host_definitions:
     hostgroup: 'centos7'
     name: 'watest-%02d-%02d'
   webarchive_activemq:
-    hostgroup: 'webarchive_activemq'
+    #    hostgroup: 'webarchive_activemq'
     name: 'waactivemq-%s-%s'

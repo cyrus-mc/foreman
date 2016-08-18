@@ -24,7 +24,7 @@ host_definitions:
     hostgroup: 'flavor:m1.small-centos7'
   webarchive_crawler:
     hostgroup: 'centos7'
-    name: 'watest-%02d-%02d'
+    name: 'watest'
   webarchive_activemq:
     #    hostgroup: 'webarchive_activemq'
-    name: 'waactivemq-%s-%s'
+    name: 'waactivemq'

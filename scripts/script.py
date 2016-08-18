@@ -286,8 +286,21 @@ def main(argv):
         print "Unable to find specified network %s, sipping" % build_settings['network']
         continue
 
+    # we need to dynamically generate the hostname
+    # search for all hostgroup + environment + location hosts
+    hosts = getRecords(server, 'hosts?search=hostgroup=%s+and+environment=%s+and+location=%s' % (hostGroupRecord['name'], build_settings['environment'], locationRecord['name']), session)
+
+    current_pod = [ '00' ]
+    for host in hosts:
+      # need to query each host individually to get parameters
+      params = getRecords(server, 'hosts/%s/parameters' % host['id'], session)
+      for param in params:
+          if param['name'] == 'pod':
+            current_pod.append(param['value'])
+
+    current_pod.sort()
+    pod = int(current_pod[-1]) + 1
     number = 1
-    pod = 1
     # dynamically figure out next POD number
     if 'number' in spec:
       number = spec['number']
@@ -312,7 +325,7 @@ def main(argv):
       request_body_map['host']['compute_resource_id'] = computeresource['id']
       request_body_map['host']['managed'] = True
       request_body_map['host']['type'] = 'Host::Managed'
-      request_body_map['host']['name'] = config['host_definitions'][spec['spec']]['name'] % (pod, i)
+      request_body_map['host']['name'] = config['host_definitions'][spec['spec']]['name'] + "-%02d-%02d" % (pod, i)
       request_body_map['host']['hostgroup_id'] = hostGroupRecord['id']
       request_body_map['host']['domain_id'] = domainRecord['id']
       request_body_map['host']['subnet_id'] = subnetRecord['id']
@@ -323,7 +336,7 @@ def main(argv):
       request_body_map['host']['interface_attributes']['domain_id'] = domainRecord['id']
       request_body_map['host']['interface_attributes']['subnet_id'] = subnetRecord['id']
       request_body_map['host']['interface_attributes']['type'] = 'Nic::Managed'
-      request_body_map['host']['interface_attributes']['name'] = build_settings['name'] % (pod, i)
+      request_body_map['host']['interface_attributes']['name'] = build_settings['name'] + "-%02d-%02d" % (pod, i)
       request_body_map['host']['interface_attributes']['managed'] = "1"
       request_body_map['host']['interface_attributes']['primary'] = "1"
       request_body_map['host']['interface_attributes']['provision'] = "1"

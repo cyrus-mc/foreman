@@ -1,0 +1,41 @@
+diff -Naur foreman-proxy.orig/modules/dns_nsupdate/dns_nsupdate_main.rb /usr/share/foreman-proxy/modules/dns_nsupdate/dns_nsupdate_main.rb
+--- foreman-proxy.orig/modules/dns_nsupdate/dns_nsupdate_main.rb	2016-02-24 08:24:31.000000000 -0500
++++ /usr/share/foreman-proxy/modules/dns_nsupdate/dns_nsupdate_main.rb	2016-08-03 17:42:10.075059233 -0400
+@@ -17,17 +17,21 @@
+     end
+ 
+     def create_ptr_record(fqdn, ip)
++      # our DNS is poisoned, so delete first
++      if dns_find(ip)
++        remove_ptr_record(ip)
++      end
+       do_create(ip, fqdn, "PTR")
+     end
+ 
+     def do_create(id, value, type)
+       nsupdate_connect
+ 
+-      if found = dns_find(id)
+-        raise(Proxy::Dns::Collision, "#{id} is already used by #{found}") unless found == value
+-      else
+-        nsupdate "update add #{id}. #{@ttl} #{type} #{value}"
+-      end
++      #if found = dns_find(id)
++      #  raise(Proxy::Dns::Collision, "#{id} is already used by #{found}") unless found == value
++      #else
++      nsupdate "update add #{id}. #{@ttl} #{type} #{value}"
++      #end
+ 
+       nsupdate_disconnect
+     ensure
+@@ -62,8 +66,8 @@
+       nsupdate_cmd = "#{@nsupdate} #{nsupdate_args}"
+       logger.debug "running #{nsupdate_cmd}"
+       @om = IO.popen(nsupdate_cmd, "r+")
+-      logger.debug "nsupdate: executed - server #{@server}"
+-      @om.puts "server #{@server}"
++      #logger.debug "nsupdate: executed - server #{@server}"
++      #@om.puts "server #{@server}"
+     end
+ 
+     def nsupdate_disconnect

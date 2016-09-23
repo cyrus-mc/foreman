@@ -172,8 +172,11 @@ def main(argv):
     print "Error parsing YAML : ", exc
 
   # first thing we need is to authenticate
+  print "\nPlease enter your Active Directory credentials for Foreman server %s\n" % (server)
   username = raw_input('username: ')
   password = getpass.getpass('password: ')
+
+  print "\nBeginning Deployment: \n"
 
   # create session
   session = create_session(server, username, password)
@@ -306,7 +309,8 @@ def main(argv):
       number = spec['number']
 
     # retrieve domain
-    domain = "%s.%s" % (build_settings['site_code'], build_settings['domain'])
+    #domain = "%s.%s" % (build_settings['site_code'], build_settings['domain'])
+    domain = "ost.%s" % (build_settings['domain'])
     domainRecord = getRecord(server, 'domains', 'name', domain, session)
     if domainRecord == None:
         print "Unable to find specified domain %s, skipping" % domain
@@ -321,11 +325,11 @@ def main(argv):
       request_body_map['host'] = {}
       request_body_map['host']['location_id'] = locationRecord['id']
       request_body_map['host']['organization_id'] = orgRecord['id']
-      request_body_map['host']['environment_id'] = "3" # this will be upated via or post hook
+      request_body_map['host']['environment_id'] = "9" # this will be upated via or post hook
       request_body_map['host']['compute_resource_id'] = computeresource['id']
       request_body_map['host']['managed'] = True
       request_body_map['host']['type'] = 'Host::Managed'
-      request_body_map['host']['name'] = config['host_definitions'][spec['spec']]['name'] + "-%02d-%02d" % (pod, i)
+      request_body_map['host']['name'] = build_settings['prefix'] + "-" + config['host_definitions'][spec['spec']]['name'] + "-%02d-%02d" % (pod, i)
       request_body_map['host']['hostgroup_id'] = hostGroupRecord['id']
       request_body_map['host']['domain_id'] = domainRecord['id']
       request_body_map['host']['subnet_id'] = subnetRecord['id']
@@ -336,7 +340,7 @@ def main(argv):
       request_body_map['host']['interface_attributes']['domain_id'] = domainRecord['id']
       request_body_map['host']['interface_attributes']['subnet_id'] = subnetRecord['id']
       request_body_map['host']['interface_attributes']['type'] = 'Nic::Managed'
-      request_body_map['host']['interface_attributes']['name'] = build_settings['name'] + "-%02d-%02d" % (pod, i)
+      request_body_map['host']['interface_attributes']['name'] = build_settings['prefix'] + "-" + build_settings['name'] + "-%02d-%02d" % (pod, i)
       request_body_map['host']['interface_attributes']['managed'] = "1"
       request_body_map['host']['interface_attributes']['primary'] = "1"
       request_body_map['host']['interface_attributes']['provision'] = "1"
@@ -352,8 +356,15 @@ def main(argv):
         request_body_map['host']['compute_attributes']['flavor_ref'] = flavorRecord['id']
 
       # create the host
-      print request_body_map
-      #result = createRecord(server, 'hosts', request_body_map, session)
+      #print request_body_map
+      print "- server %s.%s" % (request_body_map['host']['name'], domainRecord['name'])
+      print "\t location: %s" % (locationRecord['name'])
+      print "\t organization: %s" % (orgRecord['name'])
+      print "\t compute resource: %s" % (computeresource['name'])
+
+      # execute the create request
+      result = createRecord(server, 'hosts', request_body_map, session)
+      print "\t status: %s\n" % (result.status_code)
       #print result.json()
 
 if __name__ == '__main__':

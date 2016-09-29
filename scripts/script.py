@@ -210,20 +210,20 @@ def main(argv):
  
   # loop over the systems to build
   for system in input_config['build_spec']['systems']:
-    spec = input_config['build_spec']['systems'][system]
+    #spec = input_config['build_spec']['systems'][system]
 
     # get default settings for this spec (if it exists)
     default_host_settings = {}
-    if spec['spec'] in config['host_definitions']:
-      default_host_settings = config['host_definitions'][spec['spec']]
+    if system['spec'] in config['host_definitions']:
+      default_host_settings = config['host_definitions'][system['spec']]
 
     # now we need to make a decision on the location to build in
     # use global/default or the one specified in the spec
-    if 'location' in spec:
-      location = spec['location']
+    if 'location' in system:
+      location = system['location']
 
-    if 'organization' in spec:
-      organization = spec['organization']
+    if 'organization' in system:
+      organization = system['organization']
 
     if organization == None or location == None:
       print "No location or organization specified for this deployment, skipping"
@@ -241,10 +241,10 @@ def main(argv):
 
     orgRecord = getRecords(server, 'organizations/%s' % organization, session)
 
-    default_global_settings = config['default_configurations']['locations'][location.lower()]['environment'][spec['environment']]
+    default_global_settings = config['default_configurations']['locations'][location.lower()]['environment'][system['environment']]
     build_settings = default_global_settings.copy()
     build_settings.update(default_host_settings)
-    build_settings.update(spec)
+    build_settings.update(system)
 
     # ok, we should have most of the needed information to build the machine
     # find hostgroup ID
@@ -305,8 +305,8 @@ def main(argv):
     pod = int(current_pod[-1]) + 1
     number = 1
     # dynamically figure out next POD number
-    if 'number' in spec:
-      number = spec['number']
+    if 'number' in system:
+      number = system['number']
 
     # retrieve domain
     #domain = "%s.%s" % (build_settings['site_code'], build_settings['domain'])
@@ -329,7 +329,7 @@ def main(argv):
       request_body_map['host']['compute_resource_id'] = computeresource['id']
       request_body_map['host']['managed'] = True
       request_body_map['host']['type'] = 'Host::Managed'
-      request_body_map['host']['name'] = build_settings['prefix'] + "-" + config['host_definitions'][spec['spec']]['name'] + "-%02d-%02d" % (pod, i)
+      request_body_map['host']['name'] = build_settings['prefix'] + "-" + config['host_definitions'][system['spec']]['name'] + "-%02d-%02d" % (pod, i)
       request_body_map['host']['hostgroup_id'] = hostGroupRecord['id']
       request_body_map['host']['domain_id'] = domainRecord['id']
       request_body_map['host']['subnet_id'] = subnetRecord['id']
@@ -363,9 +363,10 @@ def main(argv):
       print "\t compute resource: %s" % (computeresource['name'])
 
       # execute the create request
-      result = createRecord(server, 'hosts', request_body_map, session)
-      print "\t status: %s\n" % (result.status_code)
+      #result = createRecord(server, 'hosts', request_body_map, session)
+      #print "\t status: %s\n" % (result.status_code)
       #print result.json()
+      print request_body_map
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv[1:]))

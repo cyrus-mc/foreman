@@ -28,6 +28,10 @@ module ForemanExtensions
         # Add a new role called 'Discovery' if it doesn't exist
         role 'ForemanExtensions', [:view_foreman_extensions]
 
+        # register compute resource
+        compute_resource ForemanExtensions::Liberty
+
+	parameter_filter ComputeResource, :domain
         # add menu entry
         #menu :top_menu, :template,
         #     url_hash: { controller: :'foreman_extensions/hosts', action: :new_action },
